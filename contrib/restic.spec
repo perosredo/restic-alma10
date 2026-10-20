@@ -1,5 +1,5 @@
 Name: restic
-Version: 0.18.0
+Version: 0.19.1
 Release: 1%{?dist}
 Summary: Fast, secure, efficient backup program
 
@@ -79,6 +79,9 @@ install -p -m 755 restic %{buildroot}%{_bindir}/restic
 %{_datarootdir}/fish/vendor_completions.d/restic.fish
 
 %changelog
+* Tue Oct 20 2026 Petar Sredojevic <petar@sredojevic.ca> - 0.19.1-1
+- Update to upstream 0.19.1 (automated)
+
 * Fri Aug 16 2024 Petar Sredojevic <petar@sredojevic.ca> - 0.18.0-1
 - Adapted for AlmaLinux 10/RHEL 10 from upstream contrib/restic.spec
 - Updated to restic 0.18.0 (latest release)
