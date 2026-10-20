@@ -10,7 +10,7 @@ License: BSD-2-Clause
 URL: https://restic.net/
 Source0: https://github.com/restic/restic/releases/download/v%{version}/restic-%{version}.tar.gz
 
-BuildRequires: golang >= 1.23
+BuildRequires: golang >= 1.25
 BuildRequires: make
 BuildRequires: git
 Requires: /bin/bash

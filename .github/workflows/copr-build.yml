@@ -1,59 +1,60 @@
-name: Sync with Upstream and Build
+name: Bump spec to upstream release and build in COPR
 
 on:
   schedule:
-    # Check daily for new releases
-    - cron: '0 0 * * *'
+    # Check daily for new upstream releases
+    - cron: '0 6 * * *'
   workflow_dispatch:
 
+permissions:
+  contents: write
+  actions: write
+
+env:
+  UPSTREAM_REPO: restic/restic
+  SPEC: contrib/restic.spec
+  GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
 jobs:
-  sync-and-build:
+  bump-and-build:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout fork
-        uses: actions/checkout@v3
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          fetch-depth: 0
-      
-      - name: Setup git
+      - uses: actions/checkout@v4
+
+      - name: Compare spec version with latest upstream release
+        id: check
         run: |
-          git config user.name "GitHub Actions"
-          git config user.email "actions@github.com"
-      
-      - name: Sync with upstream
-        run: |
-          # Add upstream remote
-          git remote add upstream https://github.com/restic/restic.git || true
-          
-          # Fetch upstream tags
-          git fetch upstream --tags
-          
-          # Get latest upstream tag
-          LATEST_TAG=$(git describe --tags --abbrev=0 upstream/master)
-          
-          # Check if we already have this tag
-          if git rev-parse "$LATEST_TAG" >/dev/null 2>&1; then
-            echo "Already up to date with $LATEST_TAG"
-            exit 0
+          LATEST=$(gh api "repos/$UPSTREAM_REPO/releases/latest" --jq .tag_name | sed 's/^v//')
+          CURRENT=$(awk '/^Version:/ {print $2; exit}' "$SPEC")
+          echo "upstream=$LATEST spec=$CURRENT"
+          if [ -z "$LATEST" ]; then
+            echo "::error::Could not read latest upstream release"
+            exit 1
           fi
-          
-          # Merge upstream changes
-          git fetch upstream master
-          git merge upstream/master -m "Sync with upstream"
-          
-          # Keep our spec file changes
-          git checkout HEAD -- contrib/restic.spec
-          
-          # Push changes
-          git push origin master
-          git push origin --tags
-          
-          echo "new_release=true" >> $GITHUB_ENV
-          echo "Synced to $LATEST_TAG"
-      
-      - name: Trigger COPR build
-        if: env.new_release == 'true'
+          if [ "$LATEST" = "$CURRENT" ]; then
+            echo "Already at $CURRENT, nothing to do"
+          else
+            echo "version=$LATEST" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Update spec, commit and push
+        if: steps.check.outputs.version
+        env:
+          VERSION: ${{ steps.check.outputs.version }}
         run: |
-          # Webhook will auto-trigger from the push
-          echo "COPR webhook should trigger automatically from push"
+          sed -i -E "s/^(Version:[[:space:]]*).*/\1$VERSION/; s/^(Release:[[:space:]]*)[0-9]+/\11/" "$SPEC"
+          sed -i "/^%changelog/a * $(date '+%a %b %d %Y') Petar Sredojevic <petar@sredojevic.ca> - $VERSION-1\n- Update to upstream $VERSION (automated)\n" "$SPEC"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -am "Update restic to $VERSION"
+          git push
+
+      - name: Trigger COPR build
+        if: steps.check.outputs.version
+        run: curl --fail --silent --show-error -X POST "${{ secrets.COPR_WEBHOOK }}"
+
+      # Scheduled workflows get disabled after 60 days without repo activity;
+      # re-enabling on every run resets that timer.
+      - name: Keepalive
+        if: always()
+        run: gh api -X PUT "repos/$GITHUB_REPOSITORY/actions/workflows/copr-build.yml/enable"
