@@ -5,6 +5,11 @@ on:
     # Check daily for new upstream releases
     - cron: '0 6 * * *'
   workflow_dispatch:
+    inputs:
+      force_build:
+        description: Trigger a COPR build even if the spec is already current
+        type: boolean
+        default: false
 
 permissions:
   contents: write
@@ -50,8 +55,10 @@ jobs:
           git push
 
       - name: Trigger COPR build
-        if: steps.check.outputs.version
-        run: curl --fail --silent --show-error -X POST "${{ secrets.COPR_WEBHOOK }}"
+        if: steps.check.outputs.version || inputs.force_build
+        env:
+          COPR_WEBHOOK: ${{ secrets.COPR_WEBHOOK }}
+        run: curl --fail --silent --show-error -X POST "$(printf '%s' "$COPR_WEBHOOK" | tr -d '[:space:]')"
 
       # Scheduled workflows get disabled after 60 days without repo activity;
       # re-enabling on every run resets that timer.
