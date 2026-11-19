@@ -1,5 +1,5 @@
 Name: restic
-Version: 0.19.1
+Version: 0.20.0
 Release: 1%{?dist}
 Summary: Fast, secure, efficient backup program
 
@@ -79,6 +79,9 @@ install -p -m 755 restic %{buildroot}%{_bindir}/restic
 %{_datarootdir}/fish/vendor_completions.d/restic.fish
 
 %changelog
+* Thu Nov 19 2026 Petar Sredojevic <petar@sredojevic.ca> - 0.20.0-1
+- Update to upstream 0.20.0 (automated)
+
 * Tue Oct 20 2026 Petar Sredojevic <petar@sredojevic.ca> - 0.19.1-1
 - Update to upstream 0.19.1 (automated)
 
